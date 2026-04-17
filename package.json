@@ -1,0 +1,20 @@
+{
+  "name": "budget-tool",
+  "version": "1.0.0",
+  "description": "Budget tracking tool with multi-user support",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python -m uvicorn main:app --reload",
+    "build": "cd frontend && npm run build",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "install:all": "npm run install:backend && npm run install:frontend"
+  },
+  "keywords": ["budget", "finance", "tracking"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
