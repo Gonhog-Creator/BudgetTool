@@ -36,17 +36,34 @@ class CategorizationService:
         return categorized
     
     def _find_category(self, description: str, categories: List[Category]) -> int:
-        """Find matching category based on keywords"""
+        """Find matching category based on keywords with improved accuracy"""
         description_lower = description.lower()
+        description_words = set(description_lower.split())
+        
+        best_match = None
+        best_score = 0
         
         for category in categories:
             if category.keywords:
                 keywords = [k.strip().lower() for k in category.keywords.split(',')]
+                score = 0
+                matched_keywords = []
+                
                 for keyword in keywords:
-                    if keyword in description_lower:
-                        return category.id
+                    # Check for exact word match (higher priority)
+                    if keyword in description_words:
+                        score += 2
+                        matched_keywords.append(keyword)
+                    # Check for substring match (lower priority)
+                    elif keyword in description_lower:
+                        score += 1
+                        matched_keywords.append(keyword)
+                
+                if score > best_score:
+                    best_score = score
+                    best_match = category.id
         
-        return None  # Uncategorized
+        return best_match if best_score > 0 else None
     
     def suggest_category(self, description: str, db: Session, user_id: int) -> Category:
         """Suggest a category for a transaction description"""

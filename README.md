@@ -6,11 +6,17 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
 
 - **Multi-format Import**: Supports CSV, OFX, QFX, and QBO bank statement formats
 - **Auto-categorization**: Automatically categorizes transactions based on keyword matching
+- **Smart Auto-categorization**: When you manually categorize a transaction, all transactions with the exact same description are automatically updated
 - **Recurring Payment Detection**: Identifies and tracks recurring payments (monthly, weekly, etc.)
 - **Interactive Dashboard**: Visual charts for spending by category and over time
 - **CSV Export**: Export your transactions for analysis in other tools
 - **File Management**: View and manage uploaded bank statements
 - **Database Migration**: Easy schema updates without manual database deletion
+- **Multi-select Transactions**: Select multiple transactions via checkboxes, click, or drag
+- **Bulk Category Changes**: Change category for multiple selected transactions at once
+- **Advanced Search**: Search with `!` prefix to exclude keywords (e.g., `!fee` to exclude transactions containing "fee")
+- **Uncategorized Filtering**: View all uncategorized transactions with count and percentage stats
+- **Similarity Sorting**: Group similar transactions together for easier bulk categorization
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Local-first**: All data stays on your machine - no cloud storage required
 
@@ -199,8 +205,16 @@ If you encounter schema errors or the file list doesn't work:
 ### Managing Transactions
 
 1. Navigate to the **Transactions** tab
-2. Search, filter by recurring status
-3. Edit or delete transactions as needed
+2. **Search**: Use the search bar to filter transactions. Use `!` prefix to exclude keywords (e.g., `restaurant !fee` to show restaurants but exclude fees)
+3. **Filter**: Filter by income/expense or show only uncategorized transactions
+4. **Select Transactions**: 
+   - Click checkboxes to select individual transactions
+   - Click anywhere on a transaction row to toggle selection
+   - Drag across multiple rows to select/unselect them
+5. **Bulk Actions**: When transactions are selected, use the bulk action bar to change categories for all selected transactions at once
+6. **Category Changes**: Changing a category on any selected transaction will update all selected transactions to that category
+7. **Uncategorized View**: Click "Uncategorized Only" to see all uncategorized transactions with count and percentage stats. Use "Sort by Similarity" to group similar transactions together for easier categorization.
+8. **Edit or delete** individual transactions as needed
 
 ### Exporting Data
 

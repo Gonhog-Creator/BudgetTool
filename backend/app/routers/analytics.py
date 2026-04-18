@@ -27,7 +27,7 @@ def get_analytics_summary(
     
     total_spent = sum(t.amount for t in transactions if t.amount < 0)
     total_income = sum(t.amount for t in transactions if t.amount > 0)
-    net_balance = total_income + total_spent  # spent is negative
+    net_balance = total_income - abs(total_spent)
     
     return AnalyticsSummary(
         total_spent=abs(total_spent),
@@ -45,10 +45,16 @@ def get_spending_by_category(
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db)
 ):
-    if not start_date:
-        start_date = datetime.now() - timedelta(days=30)
-    if not end_date:
-        end_date = datetime.now()
+    # Don't set default dates - show all transactions unless explicitly filtered
+    
+    filters = [Category.user_id == user_id]
+    if start_date:
+        filters.append(Transaction.date >= start_date)
+    if end_date:
+        filters.append(Transaction.date <= end_date)
+    
+    # Exclude Credit Card Payment category from spending calculations
+    filters.append(Category.name != "Credit Card Payment")
     
     results = db.query(
         Category.id.label("category_id"),
@@ -59,11 +65,7 @@ def get_spending_by_category(
     ).outerjoin(
         Transaction, Category.id == Transaction.category_id
     ).filter(
-        and_(
-            Category.user_id == user_id,
-            Transaction.date >= start_date,
-            Transaction.date <= end_date
-        )
+        and_(*filters)
     ).group_by(Category.id).all()
     
     return [
@@ -85,10 +87,7 @@ def get_spending_over_time(
     group_by: str = Query("day", description="Group by: day, week, month"),
     db: Session = Depends(get_db)
 ):
-    if not start_date:
-        start_date = datetime.now() - timedelta(days=30)
-    if not end_date:
-        end_date = datetime.now()
+    # Don't set default dates - show all transactions unless explicitly filtered
     
     if group_by == "month":
         date_format = func.strftime("%Y-%m", Transaction.date)
@@ -97,15 +96,17 @@ def get_spending_over_time(
     else:  # day
         date_format = func.date(Transaction.date)
     
+    filters = [Transaction.user_id == user_id]
+    if start_date:
+        filters.append(Transaction.date >= start_date)
+    if end_date:
+        filters.append(Transaction.date <= end_date)
+    
     results = db.query(
         date_format.label("date"),
         func.sum(Transaction.amount).label("amount")
     ).filter(
-        and_(
-            Transaction.user_id == user_id,
-            Transaction.date >= start_date,
-            Transaction.date <= end_date
-        )
+        and_(*filters)
     ).group_by(date_format).order_by(date_format).all()
     
     return [

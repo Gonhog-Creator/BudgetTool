@@ -33,4 +33,21 @@ export const transactionsApi = {
       params: { user_id: userId }
     })
   },
+
+  getCount: async (userId: number, amountFilter?: 'income' | 'expense', searchTerm?: string, excludeTerm?: string, uncategorizedOnly?: boolean) => {
+    const params: any = { user_id: userId }
+    if (amountFilter) params.amount_filter = amountFilter
+    if (searchTerm) params.search = searchTerm
+    if (excludeTerm) params.exclude = excludeTerm
+    if (uncategorizedOnly) params.uncategorized_only = uncategorizedOnly
+    const response = await api.get<{ count: number }>('/transactions/count', { params })
+    return response.data.count
+  },
+
+  getUncategorizedCount: async (userId: number) => {
+    const response = await api.get<{ count: number }>('/transactions/uncategorized-count', {
+      params: { user_id: userId }
+    })
+    return response.data.count
+  },
 }

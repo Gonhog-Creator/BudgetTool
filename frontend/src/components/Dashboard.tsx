@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { analyticsApi } from '../api/analytics'
-import { AnalyticsSummary, CategorySpending, SpendingOverTime, RecurringPaymentSummary } from '../types'
-import { PieChart, LineChart, TrendingUp, DollarSign, Repeat, Calendar } from 'lucide-react'
+import { transactionsApi } from '../api/transactions'
+import { AnalyticsSummary, CategorySpending, SpendingOverTime, Transaction } from '../types'
+import { PieChart, LineChart, TrendingUp, DollarSign, Calendar, ArrowUpRight, ArrowDownRight, Wallet, PiggyBank } from 'lucide-react'
+import { format } from 'date-fns'
 import {
   Pie,
   PieChart as RechartsPieChart,
@@ -24,7 +26,7 @@ export default function Dashboard({ userId }: DashboardProps) {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null)
   const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([])
   const [spendingOverTime, setSpendingOverTime] = useState<SpendingOverTime[]>([])
-  const [recurringPayments, setRecurringPayments] = useState<RecurringPaymentSummary[]>([])
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -34,16 +36,16 @@ export default function Dashboard({ userId }: DashboardProps) {
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const [summaryData, categoryData, overTimeData, recurringData] = await Promise.all([
+      const [summaryData, categoryData, overTimeData, transactionsData] = await Promise.all([
         analyticsApi.getSummary(userId),
         analyticsApi.getByCategory(userId),
-        analyticsApi.getOverTime(userId, undefined, undefined, 'day'),
-        analyticsApi.getRecurring(userId),
+        analyticsApi.getOverTime(userId, undefined, undefined, 'month'),
+        transactionsApi.getAll(userId, { limit: 10 }),
       ])
       setSummary(summaryData)
       setCategorySpending(categoryData)
       setSpendingOverTime(overTimeData)
-      setRecurringPayments(recurringData)
+      setRecentTransactions(transactionsData)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
     } finally {
@@ -89,18 +91,18 @@ export default function Dashboard({ userId }: DashboardProps) {
                 ${summary?.net_balance.toFixed(2)}
               </p>
             </div>
-            <PieChart className="w-8 h-8 text-blue-500" />
+            <Wallet className="w-8 h-8 text-blue-500" />
           </div>
         </div>
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Transactions</p>
+              <p className="text-sm text-gray-600">Savings Rate</p>
               <p className="text-2xl font-bold text-gray-900">
-                {summary?.transaction_count}
+                {summary?.total_income > 0 ? ((summary?.total_income - summary?.total_spent) / summary?.total_income * 100).toFixed(1) : 0}%
               </p>
             </div>
-            <Calendar className="w-8 h-8 text-purple-500" />
+            <PiggyBank className="w-8 h-8 text-purple-500" />
           </div>
         </div>
       </div>
@@ -147,28 +149,51 @@ export default function Dashboard({ userId }: DashboardProps) {
         </div>
       </div>
 
-      {/* Recurring Payments */}
+      {/* Recent Transactions */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Repeat className="w-5 h-5" />
-          Recurring Payments
+          <Calendar className="w-5 h-5" />
+          Last 10 Transactions
         </h2>
-        {recurringPayments.length > 0 ? (
+        {recentTransactions.length > 0 ? (
           <div className="space-y-3">
-            {recurringPayments.map((payment, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{payment.description}</p>
-                  <p className="text-sm text-gray-600">{payment.frequency}</p>
+            {recentTransactions.map((transaction) => (
+              <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    transaction.amount >= 0 ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {transaction.amount >= 0 ? (
+                      <ArrowUpRight className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <ArrowDownRight className="w-5 h-5 text-red-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{transaction.description}</p>
+                    <p className="text-sm text-gray-600">
+                      {format(new Date(transaction.date), 'MMM dd, yyyy')}
+                      {transaction.category && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded" style={{
+                          backgroundColor: transaction.category.color + '20',
+                          color: transaction.category.color
+                        }}>
+                          {transaction.category.name}
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <p className="font-bold text-gray-900">
-                  ${Math.abs(payment.amount).toFixed(2)}
+                <p className={`font-bold ${
+                  transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {transaction.amount >= 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-4">No recurring payments detected</p>
+          <p className="text-gray-500 text-center py-4">No transactions found</p>
         )}
       </div>
     </div>

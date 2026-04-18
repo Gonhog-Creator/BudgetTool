@@ -22,9 +22,31 @@ export default function Categories({ userId }: CategoriesProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; categoryId: number | null }>({ isOpen: false, categoryId: null })
   const [autoCategorizeModal, setAutoCategorizeModal] = useState(false)
+  const [isReAutoCategorize, setIsReAutoCategorize] = useState(false)
+  const [isShiftPressed, setIsShiftPressed] = useState(false)
 
   useEffect(() => {
     loadCategories()
+    
+    // Add event listeners for shift key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftPressed(true)
+      }
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftPressed(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
   }, [userId])
 
   const loadCategories = async () => {
@@ -88,7 +110,8 @@ export default function Categories({ userId }: CategoriesProps) {
     }
   }
 
-  const handleAutoCategorize = async () => {
+  const handleAutoCategorize = async (event?: React.MouseEvent) => {
+    setIsReAutoCategorize(event?.shiftKey || false)
     setAutoCategorizeModal(true)
   }
 
@@ -96,12 +119,17 @@ export default function Categories({ userId }: CategoriesProps) {
     setAutoCategorizeModal(false)
     try {
       setAutoCategorizing(true)
-      await categoriesApi.autoCategorize(userId)
+      if (isReAutoCategorize) {
+        await categoriesApi.reAutoCategorize(userId)
+      } else {
+        await categoriesApi.autoCategorize(userId)
+      }
       await loadCategories()
     } catch (error) {
       console.error('Error auto-categorizing:', error)
     } finally {
       setAutoCategorizing(false)
+      setIsReAutoCategorize(false)
     }
   }
 
@@ -130,12 +158,21 @@ export default function Categories({ userId }: CategoriesProps) {
         
         {/* Auto-Categorize Button */}
         <button
-          onClick={handleAutoCategorize}
+          onClick={(e) => handleAutoCategorize(e)}
           disabled={autoCategorizing}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            isShiftPressed 
+              ? 'bg-orange-600 text-white hover:bg-orange-700' 
+              : 'bg-purple-600 text-white hover:bg-purple-700'
+          }`}
         >
           <Sparkles className="w-4 h-4" />
-          {autoCategorizing ? 'Auto-categorizing...' : 'Auto-categorize'}
+          {autoCategorizing 
+            ? 'Auto-categorizing...' 
+            : isShiftPressed 
+              ? 'Re-autocategorize (Shift)' 
+              : 'Auto-categorize'
+          }
         </button>
       </div>
 
@@ -347,13 +384,24 @@ export default function Categories({ userId }: CategoriesProps) {
       {/* Auto-Categorize Confirmation Modal */}
       <Modal
         isOpen={autoCategorizeModal}
-        onClose={() => setAutoCategorizeModal(false)}
-        title="Auto-Categorize"
+        onClose={() => {
+          setAutoCategorizeModal(false)
+          setIsReAutoCategorize(false)
+        }}
+        title={isReAutoCategorize ? "Re-autocategorize" : "Auto-Categorize"}
       >
-        <p className="text-gray-700 mb-4">This will auto-categorize all uncategorized transactions. Default categories will be created if none exist.</p>
+        <p className="text-gray-700 mb-4">
+          {isReAutoCategorize 
+            ? "This will remove all default categories, recreate them with updated keywords, and re-categorize all transactions. Your custom categories will be preserved."
+            : "This will auto-categorize all uncategorized transactions. Default categories will be created if none exist."
+          }
+        </p>
         <div className="flex gap-2 justify-end">
           <button
-            onClick={() => setAutoCategorizeModal(false)}
+            onClick={() => {
+              setAutoCategorizeModal(false)
+              setIsReAutoCategorize(false)
+            }}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
           >
             Cancel
@@ -361,9 +409,11 @@ export default function Categories({ userId }: CategoriesProps) {
           <button
             onClick={confirmAutoCategorize}
             disabled={autoCategorizing}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isReAutoCategorize ? 'bg-orange-600 hover:bg-orange-700' : 'bg-purple-600 hover:bg-purple-700'
+            }`}
           >
-            {autoCategorizing ? 'Processing...' : 'Continue'}
+            {autoCategorizing ? 'Processing...' : isReAutoCategorize ? 'Re-autocategorize' : 'Continue'}
           </button>
         </div>
       </Modal>

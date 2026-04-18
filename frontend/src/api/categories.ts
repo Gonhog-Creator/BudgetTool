@@ -35,4 +35,10 @@ export const categoriesApi = {
     })
     return response.data
   },
+  reAutoCategorize: async (userId: number) => {
+    const response = await api.post('/categories/re-auto-categorize', null, {
+      params: { user_id: userId }
+    })
+    return response.data
+  },
 }
