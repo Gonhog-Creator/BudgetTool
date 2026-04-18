@@ -15,6 +15,47 @@ class BaseParser(ABC):
         """Parse the file and return list of transaction dictionaries"""
         pass
     
+    def detect_account_type(self, content: bytes, filename: str) -> str:
+        """Detect if the statement is from a checking account or credit card"""
+        # Convert content to string if possible
+        try:
+            content_str = content.decode('utf-8', errors='ignore').lower()
+        except:
+            content_str = ""
+        
+        # Credit card keywords
+        credit_card_keywords = [
+            'credit card', 'visa', 'mastercard', 'american express', 'amex',
+            'discover', 'payment due', 'minimum payment', 'credit limit',
+            'available credit', 'statement balance', 'new balance',
+            'previous balance', 'interest charge', 'finance charge'
+        ]
+        
+        # Check for credit card indicators
+        for keyword in credit_card_keywords:
+            if keyword in content_str or keyword in filename.lower():
+                return "credit_card"
+        
+        # Default to checking account
+        return "checking"
+    
+    def detect_transaction_type(self, transaction: Dict[str, Any], account_type: str) -> str:
+        """Detect transaction type based on account type and amount"""
+        if account_type == "credit_card":
+            # Credit cards: negative = purchase, positive = payment
+            if transaction.get('amount', 0) < 0:
+                return "purchase"
+            elif transaction.get('amount', 0) > 0:
+                return "payment"
+        else:
+            # Checking accounts: negative = withdrawal, positive = deposit
+            if transaction.get('amount', 0) < 0:
+                return "withdrawal"
+            elif transaction.get('amount', 0) > 0:
+                return "deposit"
+        
+        return None
+    
     def normalize_transaction(self, transaction: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize transaction data to standard format"""
         return {
@@ -22,6 +63,9 @@ class BaseParser(ABC):
             'description': transaction.get('description', '').strip(),
             'amount': float(transaction.get('amount', 0)),
             'account': transaction.get('account', 'Unknown'),
+            'account_number': transaction.get('account_number'),
+            'account_type': transaction.get('account_type'),
+            'transaction_type': transaction.get('transaction_type'),
         }
     
     def _parse_date(self, date_value: Any) -> datetime:

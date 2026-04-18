@@ -28,4 +28,11 @@ export const categoriesApi = {
       params: { user_id: userId }
     })
   },
+
+  autoCategorize: async (userId: number) => {
+    const response = await api.post('/categories/auto-categorize', null, {
+      params: { user_id: userId }
+    })
+    return response.data
+  },
 }

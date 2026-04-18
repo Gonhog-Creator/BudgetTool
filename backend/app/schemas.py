@@ -9,6 +9,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     pass
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
 class User(UserBase):
     id: int
     created_at: datetime
@@ -38,11 +42,14 @@ class TransactionBase(BaseModel):
     description: str
     amount: float
     account: Optional[str] = None
+    account_number: Optional[str] = None
     category_id: Optional[int] = None
     user_id: int
     is_recurring: bool = False
     recurring_pattern: Optional[str] = None
     notes: Optional[str] = None
+    account_type: str = "checking"
+    transaction_type: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass
@@ -52,15 +59,18 @@ class TransactionUpdate(BaseModel):
     description: Optional[str] = None
     amount: Optional[float] = None
     account: Optional[str] = None
+    account_number: Optional[str] = None
     category_id: Optional[int] = None
     is_recurring: Optional[bool] = None
     recurring_pattern: Optional[str] = None
     notes: Optional[str] = None
+    account_type: Optional[str] = None
+    transaction_type: Optional[str] = None
 
 class Transaction(TransactionBase):
-    id: int
+    id: Optional[int] = None
     original_filename: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     category: Optional[Category] = None
     
     class Config:
@@ -76,8 +86,8 @@ class AnalyticsSummary(BaseModel):
     total_income: float
     net_balance: float
     transaction_count: int
-    period_start: datetime
-    period_end: datetime
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
 
 class CategorySpending(BaseModel):
     category_id: Optional[int]

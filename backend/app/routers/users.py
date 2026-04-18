@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import User
-from app.schemas import UserCreate, User
+from app.models import User as UserModel
+from app.schemas import UserCreate, UserUpdate, User
 from app.services.user_preferences import UserPreferencesService
 
 router = APIRouter()
@@ -13,38 +13,59 @@ preferences_service = UserPreferencesService()
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user with same email exists
     if user.email:
-        existing_user = db.query(User).filter(User.email == user.email).first()
+        existing_user = db.query(UserModel).filter(UserModel.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="User with this email already exists")
-    
-    db_user = User(**user.dict())
+
+    db_user = UserModel(**user.model_dump())
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     # Initialize user preferences
     preferences_service._create_default_preferences(db_user.id)
-    
+
     return db_user
 
 @router.get("/", response_model=List[User])
 def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = db.query(User).offset(skip).limit(limit).all()
+    users = db.query(UserModel).offset(skip).limit(limit).all()
     return users
 
 @router.get("/{user_id}", response_model=User)
 def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+@router.put("/{user_id}", response_model=User)
+def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Check if email is being changed and if it conflicts with another user
+    if user_update.email and user_update.email != user.email:
+        existing_user = db.query(UserModel).filter(UserModel.email == user_update.email).first()
+        if existing_user and existing_user.id != user_id:
+            raise HTTPException(status_code=400, detail="Email already in use by another user")
+    
+    # Update user fields
+    update_data = user_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.delete("/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     db.delete(user)
     db.commit()
     return {"message": "User deleted successfully"}

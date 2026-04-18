@@ -8,7 +8,12 @@ export const usersApi = {
   },
   
   create: async (user: { name: string; email?: string }) => {
-    const response = await api.post<User>('/users', user)
+    const response = await api.post<User>('/users/', user)
+    return response.data
+  },
+  
+  update: async (id: number, user: { name?: string; email?: string }) => {
+    const response = await api.put<User>(`/users/${id}`, user)
     return response.data
   },
   

@@ -9,6 +9,8 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
 - **Recurring Payment Detection**: Identifies and tracks recurring payments (monthly, weekly, etc.)
 - **Interactive Dashboard**: Visual charts for spending by category and over time
 - **CSV Export**: Export your transactions for analysis in other tools
+- **File Management**: View and manage uploaded bank statements
+- **Database Migration**: Easy schema updates without manual database deletion
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Local-first**: All data stays on your machine - no cloud storage required
 
@@ -57,12 +59,19 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
    ```
 
 4. **Run the application**
+
+   Using npm scripts (recommended):
+   ```bash
+   npm run dev
+   ```
+
+   Or manually:
    
    Terminal 1 (Backend):
    ```bash
    cd backend
    venv\Scripts\activate
-   python -m uvicorn main:app --reload
+   python -m uvicorn main:app
    ```
    
    Terminal 2 (Frontend):
@@ -70,6 +79,8 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
    cd frontend
    npm run dev
    ```
+
+   Note: Backend requires manual restart after code changes. Frontend hot-reloads automatically.
 
 5. Open your browser to `http://localhost:3000`
 
@@ -96,12 +107,19 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
    ```
 
 4. **Run the application**
+
+   Using npm scripts (recommended):
+   ```bash
+   npm run dev
+   ```
+
+   Or manually:
    
    Terminal 1 (Backend):
    ```bash
    cd backend
    source venv/bin/activate
-   python -m uvicorn main:app --reload
+   python -m uvicorn main:app
    ```
    
    Terminal 2 (Frontend):
@@ -110,6 +128,8 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
    npm run dev
    ```
 
+   Note: Backend requires manual restart after code changes. Frontend hot-reloads automatically.
+
 5. Open your browser to `http://localhost:3000`
 
 ## Quick Start Scripts
@@ -117,7 +137,7 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
 ### Windows (run.bat)
 ```batch
 @echo off
-start cmd /k "cd backend && venv\Scripts\activate && python -m uvicorn main:app --reload"
+start cmd /k "cd backend && venv\Scripts\activate && python -m uvicorn main:app"
 timeout /t 3 /nobreak
 start cmd /k "cd frontend && npm run dev"
 echo Budget Tracker is starting...
@@ -128,7 +148,7 @@ echo Frontend: http://localhost:3000
 ### macOS/Linux (run.sh)
 ```bash
 #!/bin/bash
-cd backend && source venv/bin/activate && python -m uvicorn main:app --reload &
+cd backend && source venv/bin/activate && python -m uvicorn main:app &
 cd frontend && npm run dev &
 echo "Budget Tracker is starting..."
 echo "Backend: http://localhost:8000"
@@ -141,10 +161,26 @@ echo "Frontend: http://localhost:3000"
 
 1. Navigate to the **Upload** tab
 2. Drag and drop or select your bank statement file
-3. Supported formats:
+3. Select account type (checking or credit card)
+4. Supported formats:
    - **CSV**: Most bank exports work with automatic column detection
    - **OFX/QFX**: Quicken/QuickBooks format
    - **QBO**: QuickBooks Online format
+
+### Managing Uploaded Files
+
+1. Navigate to the **Upload** tab
+2. View the "Uploaded Files" section below the upload area
+3. See transaction counts and date ranges for each file
+4. Delete files to remove all transactions from that file
+
+### Database Migration
+
+If you encounter schema errors or the file list doesn't work:
+1. Navigate to the **Upload** tab
+2. Click the "Update Database" button in the Uploaded Files section
+3. Confirm the migration in the modal
+4. The database schema will be updated automatically without data loss
 
 ### Setting Up Categories
 

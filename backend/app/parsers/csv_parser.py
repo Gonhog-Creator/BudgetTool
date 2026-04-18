@@ -8,10 +8,13 @@ class CSVParser(BaseParser):
     
     # Common column name mappings
     COLUMN_MAPPINGS = {
-        'date': ['date', 'transaction date', 'posted date', 'transactiondate', 'posteddate', 'dt'],
+        'date': ['date', 'transaction date', 'posted date', 'transactiondate', 'posteddate', 'dt', 'post date'],
         'description': ['description', 'description', 'merchant', 'payee', 'transaction', 'details', 'memo'],
-        'amount': ['amount', 'debit', 'credit', 'transaction amount', 'amount', 'value'],
+        'debit': ['debit'],
+        'credit': ['credit'],
+        'amount': ['amount', 'transaction amount', 'value'],
         'account': ['account', 'account number', 'bank account', 'account #'],
+        'account_number': ['account number', 'account'],
     }
     
     def can_parse(self, filename: str, content: bytes) -> bool:
@@ -19,6 +22,9 @@ class CSVParser(BaseParser):
     
     def parse(self, filename: str, content: bytes) -> List[Dict[str, Any]]:
         try:
+            # Detect account type
+            account_type = self.detect_account_type(content, filename)
+            
             # Read CSV with pandas
             df = pd.read_csv(io.BytesIO(content))
             
@@ -31,12 +37,36 @@ class CSVParser(BaseParser):
             transactions = []
             for _, row in mapped_df.iterrows():
                 try:
+                    # Calculate amount from debit/credit columns if available
+                    amount = 0.0
+                    if 'debit' in mapped_df.columns and 'credit' in mapped_df.columns:
+                        debit = self._parse_amount(row.get('debit', 0))
+                        credit = self._parse_amount(row.get('credit', 0))
+                        amount = credit - debit  # Credits are positive, debits are negative
+                    elif 'amount' in mapped_df.columns:
+                        amount = self._parse_amount(row.get('amount', 0))
+                    
+                    # Extract account number if available
+                    account = row.get('account_number', row.get('account', filename))
+                    if pd.notna(account):
+                        account = str(account)
+                        # Extract last 4 digits if it's a masked account number
+                        if 'XXXXXX' in account:
+                            account = account.replace('XXXXXX', '').replace('"', '').strip()
+                    
                     transaction = {
                         'date': row['date'],
                         'description': str(row['description']),
-                        'amount': self._parse_amount(row['amount']),
-                        'account': row.get('account', filename),
+                        'amount': amount,
+                        'account': account,
+                        'account_type': account_type
                     }
+                    
+                    # Detect transaction type
+                    transaction_type = self.detect_transaction_type(transaction, account_type)
+                    if transaction_type:
+                        transaction['transaction_type'] = transaction_type
+                    
                     transactions.append(self.normalize_transaction(transaction))
                 except Exception as e:
                     print(f"Error parsing row: {e}")

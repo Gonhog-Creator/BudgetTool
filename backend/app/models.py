@@ -36,6 +36,7 @@ class Transaction(Base):
     description = Column(String, nullable=False, index=True)
     amount = Column(Float, nullable=False)
     account = Column(String, nullable=True)  # Bank account name
+    account_number = Column(String, nullable=True)  # Last 4 digits of account number
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_recurring = Column(Boolean, default=False, index=True)
@@ -43,6 +44,8 @@ class Transaction(Base):
     original_filename = Column(String, nullable=True)  # Source file
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    account_type = Column(String, default="checking")  # "checking" or "credit_card"
+    transaction_type = Column(String, nullable=True)  # "purchase", "payment", "deposit", "withdrawal"
     
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")

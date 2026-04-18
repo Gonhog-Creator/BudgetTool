@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from app.parsers.base_parser import BaseParser
 from app.parsers.csv_parser import CSVParser
 from app.parsers.ofx_parser import OFXParser
+from app.parsers.pdf_parser import PDFParser
 
 class ParserFactory:
     """Factory to get appropriate parser for a file"""
@@ -10,6 +11,7 @@ class ParserFactory:
         self.parsers: List[BaseParser] = [
             OFXParser(),
             CSVParser(),
+            PDFParser(),
         ]
     
     def get_parser(self, filename: str, content: bytes) -> BaseParser:

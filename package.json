@@ -1,15 +1,17 @@
 {
   "name": "budget-tool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Budget tracking tool with multi-user support",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --kill-others",
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && python -m uvicorn main:app --reload",
+    "dev:backend": "cd backend && python -m uvicorn main:app",
     "build": "cd frontend && npm run build",
+    "clean": "cd frontend && del /q *.timestamp-*.mjs 2>nul",
     "install:frontend": "cd frontend && npm install",
     "install:backend": "cd backend && pip install -r requirements.txt",
-    "install:all": "npm run install:backend && npm run install:frontend"
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "kill-ports": "powershell -Command \"$ports = @(8000,3000); foreach ($port in $ports) { $proc = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1; if ($proc) { Stop-Process -Id $proc.OwningProcess -Force -ErrorAction SilentlyContinue } }\""
   },
   "keywords": ["budget", "finance", "tracking"],
   "author": "",

@@ -11,6 +11,9 @@ class OFXParser(BaseParser):
     
     def parse(self, filename: str, content: bytes) -> List[Dict[str, Any]]:
         try:
+            # Detect account type
+            account_type = self.detect_account_type(content, filename)
+            
             # Parse OFX content
             ofx = OfxParser.parse(io.BytesIO(content))
             
@@ -36,7 +39,14 @@ class OFXParser(BaseParser):
                         'description': transaction.memo or transaction.payee or transaction.id,
                         'amount': amount,
                         'account': account_name,
+                        'account_type': account_type
                     }
+                    
+                    # Detect transaction type
+                    transaction_type = self.detect_transaction_type(transaction_dict, account_type)
+                    if transaction_type:
+                        transaction_dict['transaction_type'] = transaction_type
+                    
                     transactions.append(self.normalize_transaction(transaction_dict))
                 except Exception as e:
                     print(f"Error parsing transaction: {e}")

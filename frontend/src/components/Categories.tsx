@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { categoriesApi } from '../api/categories'
 import { Category } from '../types'
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Sparkles } from 'lucide-react'
+import Modal from './Modal'
 
 interface CategoriesProps {
   userId: number
@@ -10,6 +11,7 @@ interface CategoriesProps {
 export default function Categories({ userId }: CategoriesProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [autoCategorizing, setAutoCategorizing] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [newCategory, setNewCategory] = useState<Partial<Category>>({
     name: '',
@@ -18,6 +20,8 @@ export default function Categories({ userId }: CategoriesProps) {
     keywords: '',
   })
   const [showAddForm, setShowAddForm] = useState(false)
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; categoryId: number | null }>({ isOpen: false, categoryId: null })
+  const [autoCategorizeModal, setAutoCategorizeModal] = useState(false)
 
   useEffect(() => {
     loadCategories()
@@ -57,13 +61,47 @@ export default function Categories({ userId }: CategoriesProps) {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this category?')) return
+  const handleDelete = async (id: number, event?: React.MouseEvent) => {
+    // Check if shift key is held to bypass confirmation
+    if (event && event.shiftKey) {
+      try {
+        await categoriesApi.delete(id, userId)
+        await loadCategories()
+      } catch (error) {
+        console.error('Error deleting category:', error)
+      }
+      return
+    }
+
+    // Otherwise show confirmation modal
+    setDeleteModal({ isOpen: true, categoryId: id })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteModal.categoryId) return
     try {
-      await categoriesApi.delete(id, userId)
-      setCategories(categories.filter((c) => c.id !== id))
+      await categoriesApi.delete(deleteModal.categoryId, userId)
+      await loadCategories()
+      setDeleteModal({ isOpen: false, categoryId: null })
     } catch (error) {
       console.error('Error deleting category:', error)
+    }
+  }
+
+  const handleAutoCategorize = async () => {
+    setAutoCategorizeModal(true)
+  }
+
+  const confirmAutoCategorize = async () => {
+    setAutoCategorizeModal(false)
+    try {
+      setAutoCategorizing(true)
+      await categoriesApi.autoCategorize(userId)
+      await loadCategories()
+    } catch (error) {
+      console.error('Error auto-categorizing:', error)
+    } finally {
+      setAutoCategorizing(false)
     }
   }
 
@@ -78,16 +116,28 @@ export default function Categories({ userId }: CategoriesProps) {
 
   return (
     <div className="space-y-4">
-      {/* Add Category Button */}
-      {!showAddForm && (
+      <div className="flex gap-2 flex-wrap">
+        {/* Add Category Button */}
+        {!showAddForm && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Category
+          </button>
+        )}
+        
+        {/* Auto-Categorize Button */}
         <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          onClick={handleAutoCategorize}
+          disabled={autoCategorizing}
+          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Plus className="w-4 h-4" />
-          Add Category
+          <Sparkles className="w-4 h-4" />
+          {autoCategorizing ? 'Auto-categorizing...' : 'Auto-categorize'}
         </button>
-      )}
+      </div>
 
       {/* Add Category Form */}
       {showAddForm && (
@@ -254,8 +304,9 @@ export default function Categories({ userId }: CategoriesProps) {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(category.id)}
+                          onClick={(e) => handleDelete(category.id, e)}
                           className="text-red-600 hover:text-red-700"
+                          title="Delete category (hold Shift to skip confirmation)"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -268,6 +319,54 @@ export default function Categories({ userId }: CategoriesProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, categoryId: null })}
+        title="Delete Category"
+      >
+        <p className="text-gray-700 mb-4">Are you sure you want to delete this category?</p>
+        <p className="text-sm text-gray-500 mb-6">Tip: Hold Shift while clicking the delete button to skip this confirmation.</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => setDeleteModal({ isOpen: false, categoryId: null })}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmDelete}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
+
+      {/* Auto-Categorize Confirmation Modal */}
+      <Modal
+        isOpen={autoCategorizeModal}
+        onClose={() => setAutoCategorizeModal(false)}
+        title="Auto-Categorize"
+      >
+        <p className="text-gray-700 mb-4">This will auto-categorize all uncategorized transactions. Default categories will be created if none exist.</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => setAutoCategorizeModal(false)}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmAutoCategorize}
+            disabled={autoCategorizing}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {autoCategorizing ? 'Processing...' : 'Continue'}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

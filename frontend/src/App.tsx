@@ -4,8 +4,9 @@ import Upload from './components/Upload'
 import Transactions from './components/Transactions'
 import Categories from './components/Categories'
 import UserSelector from './components/UserSelector'
+import UserSettings from './components/UserSettings'
 import UpdateManager from './components/UpdateManager'
-import { Layout, Menu, UploadCloud, PieChart, List, FolderOpen, Users, Settings } from 'lucide-react'
+import { Layout, Menu, UploadCloud, PieChart, List, FolderOpen, Users, Settings, LogOut } from 'lucide-react'
 import { User } from './types'
 import { usersApi } from './api/users'
 
@@ -13,8 +14,6 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showUserSelector, setShowUserSelector] = useState(false)
-  const [showUpdateManager, setShowUpdateManager] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -42,14 +41,24 @@ function App() {
   const handleUserSelect = (user: User) => {
     setSelectedUser(user)
     localStorage.setItem('selectedUserId', user.id.toString())
-    setShowUserSelector(false)
   }
 
   const handleUserCreated = (user: User) => {
     setUsers([...users, user])
     setSelectedUser(user)
     localStorage.setItem('selectedUserId', user.id.toString())
-    setShowUserSelector(false)
+  }
+
+  const handleLogout = () => {
+    setSelectedUser(null)
+    localStorage.removeItem('selectedUserId')
+  }
+
+  const handleUserUpdated = (user: User) => {
+    setUsers(users.map((u) => (u.id === user.id ? user : u)))
+    if (selectedUser && selectedUser.id === user.id) {
+      setSelectedUser(user)
+    }
   }
 
   const tabs = [
@@ -57,6 +66,7 @@ function App() {
     { id: 'upload', label: 'Upload', icon: UploadCloud },
     { id: 'transactions', label: 'Transactions', icon: List },
     { id: 'categories', label: 'Categories', icon: FolderOpen },
+    { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'updates', label: 'Updates', icon: Settings },
   ]
 
@@ -67,6 +77,7 @@ function App() {
           users={users}
           onUserSelect={handleUserSelect}
           onUserCreated={handleUserCreated}
+          onUserUpdated={handleUserUpdated}
           onUserDeleted={(userId) => {
             setUsers(users.filter((u) => u.id !== userId))
           }}
@@ -84,11 +95,20 @@ function App() {
               <Layout className="w-8 h-8 text-blue-600" />
               <h1 className="text-xl font-bold text-gray-900">Budget Tracker</h1>
               <button
-                onClick={() => setShowUserSelector(!showUserSelector)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm"
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer ${
+                  activeTab === 'settings' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
               >
                 <Users className="w-4 h-4" />
                 {selectedUser.name}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
             <div className="flex gap-1">
@@ -114,29 +134,12 @@ function App() {
         </div>
       </nav>
 
-      {showUserSelector && (
-        <div className="bg-white border-b shadow-sm">
-          <UserSelector
-            users={users}
-            onUserSelect={handleUserSelect}
-            onUserCreated={handleUserCreated}
-            onUserDeleted={(userId) => {
-              setUsers(users.filter((u) => u.id !== userId))
-              if (selectedUser.id === userId) {
-                setSelectedUser(null)
-                localStorage.removeItem('selectedUserId')
-              }
-            }}
-            inline
-          />
-        </div>
-      )}
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'dashboard' && <Dashboard userId={selectedUser.id} />}
         {activeTab === 'upload' && <Upload userId={selectedUser.id} />}
         {activeTab === 'transactions' && <Transactions userId={selectedUser.id} />}
         {activeTab === 'categories' && <Categories userId={selectedUser.id} />}
+        {activeTab === 'settings' && <UserSettings userId={selectedUser.id} userName={selectedUser.name} onUserUpdated={handleUserUpdated} />}
         {activeTab === 'updates' && <UpdateManager />}
       </main>
     </div>

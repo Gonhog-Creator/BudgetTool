@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.models import Transaction, Category
@@ -16,18 +16,12 @@ def get_analytics_summary(
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db)
 ):
-    if not start_date:
-        start_date = datetime.now() - timedelta(days=30)
-    if not end_date:
-        end_date = datetime.now()
+    query = db.query(Transaction).filter(Transaction.user_id == user_id)
     
-    query = db.query(Transaction).filter(
-        and_(
-            Transaction.user_id == user_id,
-            Transaction.date >= start_date,
-            Transaction.date <= end_date
-        )
-    )
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
     
     transactions = query.all()
     
@@ -153,3 +147,52 @@ def get_recurring_payments(
         )
     
     return summaries
+
+@router.get("/category-by-month")
+def get_category_spending_by_month(
+    user_id: int,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    db: Session = Depends(get_db)
+):
+    """Get spending breakdown by category for each month"""
+    if not start_date:
+        start_date = datetime.now() - timedelta(days=90)  # Last 3 months
+    if not end_date:
+        end_date = datetime.now()
+    
+    results = db.query(
+        func.strftime("%Y-%m", Transaction.date).label("month"),
+        Category.id.label("category_id"),
+        Category.name.label("category_name"),
+        Category.color.label("color"),
+        func.sum(Transaction.amount).label("amount")
+    ).outerjoin(
+        Category, Category.id == Transaction.category_id
+    ).filter(
+        and_(
+            Category.user_id == user_id,
+            Transaction.date >= start_date,
+            Transaction.date <= end_date
+        )
+    ).group_by(
+        func.strftime("%Y-%m", Transaction.date),
+        Category.id
+    ).order_by(
+        func.strftime("%Y-%m", Transaction.date)
+    ).all()
+    
+    # Group by month
+    monthly_data: Dict[str, List[Dict[str, Any]]] = {}
+    for r in results:
+        month = r.month
+        if month not in monthly_data:
+            monthly_data[month] = []
+        monthly_data[month].append({
+            "category_id": r.category_id,
+            "category_name": r.category_name or "Uncategorized",
+            "color": r.color,
+            "amount": abs(r.amount) if r.amount else 0
+        })
+    
+    return monthly_data
