@@ -41,7 +41,7 @@ class TransactionBase(BaseModel):
     date: datetime
     description: str
     amount: float
-    account: Optional[str] = None
+    account_name: Optional[str] = None
     account_number: Optional[str] = None
     category_id: Optional[int] = None
     user_id: int
@@ -50,6 +50,7 @@ class TransactionBase(BaseModel):
     notes: Optional[str] = None
     account_type: str = "checking"
     transaction_type: Optional[str] = None
+    status: str = "Posted"
 
 class TransactionCreate(TransactionBase):
     pass
@@ -58,7 +59,7 @@ class TransactionUpdate(BaseModel):
     date: Optional[datetime] = None
     description: Optional[str] = None
     amount: Optional[float] = None
-    account: Optional[str] = None
+    account_name: Optional[str] = None
     account_number: Optional[str] = None
     category_id: Optional[int] = None
     is_recurring: Optional[bool] = None
@@ -66,6 +67,7 @@ class TransactionUpdate(BaseModel):
     notes: Optional[str] = None
     account_type: Optional[str] = None
     transaction_type: Optional[str] = None
+    status: Optional[str] = None
 
 class Transaction(TransactionBase):
     id: Optional[int] = None
@@ -84,6 +86,7 @@ class UploadResponse(BaseModel):
 class AnalyticsSummary(BaseModel):
     total_spent: float
     total_income: float
+    total_savings: float = 0.0
     net_balance: float
     transaction_count: int
     period_start: Optional[datetime] = None

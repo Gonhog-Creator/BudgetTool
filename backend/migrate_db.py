@@ -1,5 +1,5 @@
 """
-Migration script to add missing columns to transactions table
+Migration script to add accounts table and account_id column to transactions table
 """
 import sqlite3
 import os
@@ -15,7 +15,7 @@ def migrate():
     cursor = conn.cursor()
     
     try:
-        # Check existing columns
+        # Check existing columns in transactions
         cursor.execute("PRAGMA table_info(transactions)")
         columns = [column[1] for column in cursor.fetchall()]
         
@@ -50,6 +50,50 @@ def migrate():
             print("[OK] account_number column added")
         else:
             print("[OK] account_number column already exists")
+        
+        # Add account_id column
+        if 'account_id' not in columns:
+            print("Adding account_id column...")
+            cursor.execute("ALTER TABLE transactions ADD COLUMN account_id INTEGER")
+            print("[OK] account_id column added")
+        else:
+            print("[OK] account_id column already exists")
+        
+        # Add account_name column (renamed from account)
+        if 'account_name' not in columns:
+            print("Adding account_name column...")
+            cursor.execute("ALTER TABLE transactions ADD COLUMN account_name TEXT")
+            print("[OK] account_name column added")
+        else:
+            print("[OK] account_name column already exists")
+        
+        # Add status column
+        if 'status' not in columns:
+            print("Adding status column...")
+            cursor.execute("ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'Posted'")
+            print("[OK] status column added")
+        else:
+            print("[OK] status column already exists")
+        
+        # Create accounts table if it doesn't exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
+        if not cursor.fetchone():
+            print("Creating accounts table...")
+            cursor.execute("""
+                CREATE TABLE accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    account_type TEXT NOT NULL,
+                    account_number TEXT,
+                    balance REAL DEFAULT 0.0,
+                    user_id INTEGER NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            """)
+            print("[OK] accounts table created")
+        else:
+            print("[OK] accounts table already exists")
         
         conn.commit()
         print("\nMigration completed successfully!")

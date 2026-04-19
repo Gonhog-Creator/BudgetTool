@@ -20,4 +20,9 @@ export const updatesApi = {
     const response = await api.post('/updates/dependencies')
     return response.data
   },
+  
+  getCommits: async () => {
+    const response = await api.get('/updates/commits')
+    return response.data
+  },
 }

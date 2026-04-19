@@ -15,6 +15,7 @@ class CSVParser(BaseParser):
         'amount': ['amount', 'transaction amount', 'value'],
         'account': ['account', 'account number', 'bank account', 'account #'],
         'account_number': ['account number', 'account'],
+        'status': ['status'],
     }
     
     def can_parse(self, filename: str, content: bytes) -> bool:
@@ -42,7 +43,9 @@ class CSVParser(BaseParser):
                     if 'debit' in mapped_df.columns and 'credit' in mapped_df.columns:
                         debit = self._parse_amount(row.get('debit', 0))
                         credit = self._parse_amount(row.get('credit', 0))
-                        amount = credit - debit  # Credits are positive, debits are negative
+                        # Standard logic: credit (money in) is positive, debit (money out) is negative
+                        # This works for both checking and credit cards from a cash flow perspective
+                        amount = credit - debit
                     elif 'amount' in mapped_df.columns:
                         amount = self._parse_amount(row.get('amount', 0))
                     
@@ -59,7 +62,8 @@ class CSVParser(BaseParser):
                         'description': str(row['description']),
                         'amount': amount,
                         'account': account,
-                        'account_type': account_type
+                        'account_type': account_type,
+                        'status': row.get('status', 'Posted')  # Default to Posted if not specified
                     }
                     
                     # Detect transaction type

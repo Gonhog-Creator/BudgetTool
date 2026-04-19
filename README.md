@@ -8,7 +8,11 @@ A cross-platform personal finance tracking tool with automatic bank statement pa
 - **Auto-categorization**: Automatically categorizes transactions based on keyword matching
 - **Smart Auto-categorization**: When you manually categorize a transaction, all transactions with the exact same description are automatically updated
 - **Recurring Payment Detection**: Identifies and tracks recurring payments (monthly, weekly, etc.)
-- **Interactive Dashboard**: Visual charts for spending by category and over time
+- **Interactive Dashboard**: Visual charts for spending by category, spending over time, and income over time
+- **Account Management**: Track checking, savings, and credit card accounts with accurate balance calculations
+- **Credit Card Support**: Credit card balances show green when overpaid (positive balance = bank owes you)
+- **Income Tracking**: Calculate income based on transactions categorized as "Income"
+- **Savings Rate**: Track savings rate as percentage of income saved/invested
 - **CSV Export**: Export your transactions for analysis in other tools
 - **File Management**: View and manage uploaded bank statements
 - **Database Migration**: Easy schema updates without manual database deletion

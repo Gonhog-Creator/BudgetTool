@@ -16,12 +16,14 @@ interface UpdateStatus {
 export default function UpdateManager({ onClose }: { onClose?: () => void }) {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const [currentVersion, setCurrentVersion] = useState<string>('')
+  const [commits, setCommits] = useState<string[]>([])
   const [checking, setChecking] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     loadVersionInfo()
+    loadCommits()
   }, [])
 
   const loadVersionInfo = async () => {
@@ -31,6 +33,17 @@ export default function UpdateManager({ onClose }: { onClose?: () => void }) {
       checkForUpdates()
     } catch (error) {
       console.error('Error loading version info:', error)
+    }
+  }
+
+  const loadCommits = async () => {
+    try {
+      const result = await updatesApi.getCommits()
+      if (result.success) {
+        setCommits(result.commits)
+      }
+    } catch (error) {
+      console.error('Error loading commits:', error)
     }
   }
 
@@ -175,6 +188,20 @@ export default function UpdateManager({ onClose }: { onClose?: () => void }) {
           <p className={message.type === 'success' ? 'text-green-900' : 'text-red-900'}>
             {message.text}
           </p>
+        </div>
+      )}
+
+      {/* Recent Commits */}
+      {commits.length > 0 && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm font-medium text-gray-700 mb-2">Recent Commits</p>
+          <div className="space-y-1">
+            {commits.map((commit, index) => (
+              <p key={index} className="text-xs text-gray-600 font-mono">
+                {commit}
+              </p>
+            ))}
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import transactions, upload, categories, analytics, users, updates
+from app.routers import transactions, upload, categories, analytics, users, updates, accounts
 
 app = FastAPI(title="Budget Tracker API")
 
@@ -24,6 +24,7 @@ app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(updates.router, prefix="/api/updates", tags=["updates"])
+app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
 
 @app.get("/")
 async def root():

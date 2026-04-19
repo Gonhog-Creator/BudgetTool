@@ -49,3 +49,12 @@ def update_dependencies():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update dependencies: {str(e)}")
+
+@router.get("/commits")
+def get_recent_commits():
+    """Get recent commits from git"""
+    try:
+        commits = update_manager.get_recent_commits()
+        return commits
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get commits: {str(e)}")

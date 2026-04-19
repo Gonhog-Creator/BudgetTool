@@ -3,10 +3,11 @@ import Dashboard from './components/Dashboard'
 import Upload from './components/Upload'
 import Transactions from './components/Transactions'
 import Categories from './components/Categories'
+import Accounts from './components/Accounts'
 import UserSelector from './components/UserSelector'
 import UserSettings from './components/UserSettings'
 import UpdateManager from './components/UpdateManager'
-import { Layout, Menu, UploadCloud, PieChart, List, FolderOpen, Users, Settings, LogOut } from 'lucide-react'
+import { Layout, Menu, UploadCloud, PieChart, List, FolderOpen, Users, Settings, LogOut, Wallet } from 'lucide-react'
 import { User } from './types'
 import { usersApi } from './api/users'
 
@@ -65,6 +66,7 @@ function App() {
     { id: 'dashboard', label: 'Dashboard', icon: PieChart },
     { id: 'upload', label: 'Upload', icon: UploadCloud },
     { id: 'transactions', label: 'Transactions', icon: List },
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
     { id: 'categories', label: 'Categories', icon: FolderOpen },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'updates', label: 'Updates', icon: Settings },
@@ -138,6 +140,7 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard userId={selectedUser.id} />}
         {activeTab === 'upload' && <Upload userId={selectedUser.id} />}
         {activeTab === 'transactions' && <Transactions userId={selectedUser.id} />}
+        {activeTab === 'accounts' && <Accounts userId={selectedUser.id} />}
         {activeTab === 'categories' && <Categories userId={selectedUser.id} />}
         {activeTab === 'settings' && <UserSettings userId={selectedUser.id} userName={selectedUser.name} onUserUpdated={handleUserUpdated} />}
         {activeTab === 'updates' && <UpdateManager />}

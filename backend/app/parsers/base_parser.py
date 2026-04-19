@@ -41,17 +41,20 @@ class BaseParser(ABC):
     
     def detect_transaction_type(self, transaction: Dict[str, Any], account_type: str) -> str:
         """Detect transaction type based on account type and amount"""
+        amount = transaction.get('amount', 0)
+        description = transaction.get('description', '').lower()
+        
         if account_type == "credit_card":
-            # Credit cards: negative = purchase, positive = payment
-            if transaction.get('amount', 0) < 0:
+            # Credit cards: negative = purchase (spending), positive = payment (income)
+            if amount < 0:
                 return "purchase"
-            elif transaction.get('amount', 0) > 0:
+            elif amount > 0:
                 return "payment"
         else:
-            # Checking accounts: negative = withdrawal, positive = deposit
-            if transaction.get('amount', 0) < 0:
+            # Checking accounts: negative = withdrawal (spending), positive = deposit (income)
+            if amount < 0:
                 return "withdrawal"
-            elif transaction.get('amount', 0) > 0:
+            elif amount > 0:
                 return "deposit"
         
         return None
@@ -66,6 +69,7 @@ class BaseParser(ABC):
             'account_number': transaction.get('account_number'),
             'account_type': transaction.get('account_type'),
             'transaction_type': transaction.get('transaction_type'),
+            'status': transaction.get('status', 'Posted'),
         }
     
     def _parse_date(self, date_value: Any) -> datetime:

@@ -2,16 +2,18 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import Transaction as TransactionModel, Category
+from app.models import Transaction as TransactionModel, Category, Account
 from app.schemas import TransactionCreate, Transaction, UploadResponse
 from app.parsers.parser_factory import ParserFactory
 from app.services.categorization import CategorizationService
 from app.services.recurring_detection import RecurringDetectionService
+from app.services.transfer_detection import TransferDetectionService
 
 router = APIRouter()
 parser_factory = ParserFactory()
 categorization_service = CategorizationService()
 recurring_service = RecurringDetectionService()
+transfer_service = TransferDetectionService()
 
 @router.post("/statement", response_model=UploadResponse)
 async def upload_statement(
@@ -41,17 +43,51 @@ async def upload_statement(
             # Use provided account_type if available, otherwise use auto-detected type
             final_account_type = account_type or tx_data.get('account_type', 'checking')
             
+            # Find or create account
+            account_name = tx_data.get('account', f"{final_account_type.title()} Account")
+            account_number = tx_data.get('account_number')
+            
+            # Try to find existing account
+            account = db.query(Account).filter(
+                Account.user_id == user_id,
+                Account.name == account_name,
+                Account.account_type == final_account_type
+            ).first()
+            
+            # Create account if it doesn't exist
+            if not account:
+                account = Account(
+                    name=account_name,
+                    account_type=final_account_type,
+                    account_number=account_number,
+                    user_id=user_id
+                )
+                db.add(account)
+                db.flush()  # Get the account ID
+            
+            # Determine transaction type based on amount and account type
+            transaction_type = tx_data.get('transaction_type')
+            if not transaction_type:
+                if tx_data['amount'] > 0:
+                    transaction_type = 'deposit'
+                elif final_account_type == 'credit_card':
+                    transaction_type = 'purchase'
+                else:
+                    transaction_type = 'withdrawal'
+            
             transaction = TransactionModel(
                 date=tx_data['date'],
                 description=tx_data['description'],
                 amount=tx_data['amount'],
-                account=tx_data['account'],
+                account_name=tx_data.get('account'),
                 account_number=tx_data.get('account_number'),
+                account_id=account.id,
                 category_id=tx_data.get('category_id'),
                 user_id=user_id,
                 original_filename=file.filename,
                 account_type=final_account_type,
-                transaction_type=tx_data.get('transaction_type')
+                transaction_type=transaction_type,
+                status=tx_data.get('status', 'Posted')
             )
             db.add(transaction)
             created_transactions.append(transaction)
@@ -61,6 +97,9 @@ async def upload_statement(
         # Refresh to get IDs
         for tx in created_transactions:
             db.refresh(tx)
+        
+        # Detect transfers between accounts
+        transfer_service.detect_transfers_simple(db, user_id)
         
         # Detect recurring payments for this user
         recurring_service.detect_recurring_payments(db, user_id)
@@ -73,7 +112,7 @@ async def upload_statement(
                 'date': tx.date,
                 'description': tx.description,
                 'amount': tx.amount,
-                'account': tx.account,
+                'account_name': tx.account_name,
                 'account_number': tx.account_number,
                 'category_id': tx.category_id,
                 'user_id': tx.user_id,
@@ -135,7 +174,7 @@ async def export_csv(
             tx.date.strftime('%Y-%m-%d'),
             tx.description,
             tx.amount,
-            tx.account,
+            tx.account_name,
             category_name,
             tx.is_recurring,
             tx.notes or ''
@@ -218,6 +257,18 @@ async def delete_file_transactions(
         'deleted_count': deleted
     }
 
+@router.post("/detect-transfers")
+async def detect_transfers(
+    user_id: int = Query(..., description="User ID to detect transfers for"),
+    db: Session = Depends(get_db)
+):
+    """Detect and mark transfers between accounts"""
+    marked_count = transfer_service.detect_transfers_simple(db, user_id)
+    return {
+        'message': f'Detected and marked {marked_count} transactions as transfers',
+        'marked_count': marked_count
+    }
+
 @router.post("/migrate")
 async def migrate_database():
     """Run database migration to add missing columns"""
@@ -269,6 +320,33 @@ async def migrate_database():
         if 'account_number' not in columns:
             cursor.execute("ALTER TABLE transactions ADD COLUMN account_number TEXT")
             migrations.append('account_number')
+        
+        # Add account_id column
+        if 'account_id' not in columns:
+            cursor.execute("ALTER TABLE transactions ADD COLUMN account_id INTEGER")
+            migrations.append('account_id')
+        
+        # Add account_name column
+        if 'account_name' not in columns:
+            cursor.execute("ALTER TABLE transactions ADD COLUMN account_name TEXT")
+            migrations.append('account_name')
+        
+        # Create accounts table if it doesn't exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    account_type TEXT NOT NULL,
+                    account_number TEXT,
+                    balance REAL DEFAULT 0.0,
+                    user_id INTEGER NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            """)
+            migrations.append('accounts table')
         
         conn.commit()
         

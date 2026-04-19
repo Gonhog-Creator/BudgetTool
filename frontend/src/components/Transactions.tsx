@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { transactionsApi } from '../api/transactions'
 import { categoriesApi } from '../api/categories'
+import { accountsApi } from '../api/accounts'
 import { Transaction, Category } from '../types'
 import { Search, Filter, Edit2, Trash2, Download } from 'lucide-react'
 import { format } from 'date-fns'
@@ -12,6 +13,7 @@ interface TransactionsProps {
 export default function Transactions({ userId }: TransactionsProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -20,6 +22,7 @@ export default function Transactions({ userId }: TransactionsProps) {
   const [totalTransactionCount, setTotalTransactionCount] = useState(0)
   const [sortByAmount, setSortByAmount] = useState(false)
   const [filterIncome, setFilterIncome] = useState<boolean | null>(null)
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
   const [selectedTransactions, setSelectedTransactions] = useState<Set<number>>(new Set())
   const [bulkCategoryModal, setBulkCategoryModal] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -36,9 +39,10 @@ export default function Transactions({ userId }: TransactionsProps) {
   useEffect(() => {
     loadTransactions()
     loadCategories()
+    loadAccounts()
     loadUncategorizedCount()
     loadTotalTransactionCount()
-  }, [userId, filterIncome, debouncedSearchTerm, filterUncategorized, sortByAmount])
+  }, [userId, filterIncome, debouncedSearchTerm, filterUncategorized, sortByAmount, selectedAccountId])
   
   const loadUncategorizedCount = async () => {
     try {
@@ -107,6 +111,15 @@ export default function Transactions({ userId }: TransactionsProps) {
     }
   }
 
+  const loadAccounts = async () => {
+    try {
+      const data = await accountsApi.getAll(userId)
+      setAccounts(data)
+    } catch (error) {
+      console.error('Error loading accounts:', error)
+    }
+  }
+
   const loadTransactions = async (page: number = 0) => {
     try {
       setLoading(true)
@@ -115,6 +128,7 @@ export default function Transactions({ userId }: TransactionsProps) {
       if (filterIncome === false) params.amount_filter = "expense"
       if (filterUncategorized) params.uncategorized_only = true
       if (sortByAmount) params.sort_by = "similarity"
+      if (selectedAccountId) params.account_id = selectedAccountId
       
       // Parse search term for ! prefix to extract exclude terms
       if (debouncedSearchTerm) {
@@ -189,14 +203,12 @@ export default function Transactions({ userId }: TransactionsProps) {
         // Clear selection after bulk update
         setSelectedTransactions(new Set())
       } else {
-        // Only update the single transaction
+        // Only update the single transaction that was clicked
         await transactionsApi.update(transactionId, { category_id: categoryId }, userId)
-        
-        // Update local state for all transactions with the same description
+
+        // Update local state for only the clicked transaction
         setTransactions(transactions.map(t => {
           if (t.id === transactionId) {
-            return { ...t, category_id: categoryId, category: categories.find(c => c.id === categoryId) }
-          } else if (t.description === description) {
             return { ...t, category_id: categoryId, category: categories.find(c => c.id === categoryId) }
           }
           return t
@@ -344,6 +356,18 @@ export default function Transactions({ userId }: TransactionsProps) {
               Expenses
             </button>
           </div>
+          <select
+            value={selectedAccountId || ''}
+            onChange={(e) => setSelectedAccountId(e.target.value ? Number(e.target.value) : null)}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Accounts</option>
+            {accounts.map(account => (
+              <option key={account.id} value={account.id}>
+                {account.name} ({account.account_type})
+              </option>
+            ))}
+          </select>
         </div>
         <button
           onClick={() => setFilterUncategorized(!filterUncategorized)}
@@ -459,6 +483,9 @@ export default function Transactions({ userId }: TransactionsProps) {
                   Description
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Account
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -511,6 +538,9 @@ export default function Transactions({ userId }: TransactionsProps) {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {transaction.account_name || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 relative">
                     <div className="relative" ref={popoverRef}>

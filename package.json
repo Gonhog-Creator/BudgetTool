@@ -1,6 +1,6 @@
 {
   "name": "budget-tool",
-  "version": "1.0.1",
+  "version": "1.3",
   "description": "Budget tracking tool with multi-user support",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --kill-others",

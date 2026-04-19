@@ -26,6 +26,7 @@ export default function Dashboard({ userId }: DashboardProps) {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null)
   const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([])
   const [spendingOverTime, setSpendingOverTime] = useState<SpendingOverTime[]>([])
+  const [incomeOverTime, setIncomeOverTime] = useState<SpendingOverTime[]>([])
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -36,15 +37,33 @@ export default function Dashboard({ userId }: DashboardProps) {
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const [summaryData, categoryData, overTimeData, transactionsData] = await Promise.all([
+      
+      // Update account balances from transactions first
+      await fetch(`/api/accounts/update-balances?user_id=${userId}`, {
+        method: 'POST'
+      })
+      
+      const [summaryData, categoryData, overTimeData, incomeOverTimeData, transactionsData] = await Promise.all([
         analyticsApi.getSummary(userId),
         analyticsApi.getByCategory(userId),
         analyticsApi.getOverTime(userId, undefined, undefined, 'month'),
+        analyticsApi.getIncomeOverTime(userId, undefined, undefined, 'month'),
         transactionsApi.getAll(userId, { limit: 10 }),
       ])
       setSummary(summaryData)
       setCategorySpending(categoryData)
-      setSpendingOverTime(overTimeData)
+      // Format dates from YYYY-MM to Month Year (e.g., "2024-01" -> "January 2024")
+      const formattedOverTime = overTimeData.map(item => ({
+        ...item,
+        date: format(new Date(item.date + '-01'), 'MMMM yyyy')
+      }))
+      setSpendingOverTime(formattedOverTime)
+      // Format income over time dates
+      const formattedIncomeOverTime = incomeOverTimeData.map(item => ({
+        ...item,
+        date: format(new Date(item.date + '-01'), 'MMMM yyyy')
+      }))
+      setIncomeOverTime(formattedIncomeOverTime)
       setRecentTransactions(transactionsData)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -99,7 +118,7 @@ export default function Dashboard({ userId }: DashboardProps) {
             <div>
               <p className="text-sm text-gray-600">Savings Rate</p>
               <p className="text-2xl font-bold text-gray-900">
-                {summary?.total_income > 0 ? ((summary?.total_income - summary?.total_spent) / summary?.total_income * 100).toFixed(1) : 0}%
+                {summary?.total_income > 0 && summary?.total_income !== null ? ((summary?.total_savings / summary?.total_income * 100)).toFixed(1) : '0.0'}%
               </p>
             </div>
             <PiggyBank className="w-8 h-8 text-purple-500" />
@@ -118,17 +137,31 @@ export default function Dashboard({ userId }: DashboardProps) {
                 data={categorySpending}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ category_name, percent }) => `${category_name} ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="amount"
+                nameKey="category_name"
+                labelLine={({ category_name }) => {
+                  // Only show label lines for top 5 categories by amount
+                  const sortedByAmount = [...categorySpending].sort((a, b) => b.amount - a.amount)
+                  const top5 = sortedByAmount.slice(0, 5).map(c => c.category_name)
+                  return top5.includes(category_name)
+                }}
+                label={({ category_name, percent }) => {
+                  // Only show labels for top 5 categories by amount
+                  const sortedByAmount = [...categorySpending].sort((a, b) => b.amount - a.amount)
+                  const top5 = sortedByAmount.slice(0, 5).map(c => c.category_name)
+                  if (top5.includes(category_name)) {
+                    return `${category_name} (${(percent * 100).toFixed(0)}%)`
+                  }
+                  return null
+                }}
               >
                 {categorySpending.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value: number, name: string) => [`${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name]} />
             </RechartsPieChart>
           </ResponsiveContainer>
         </div>
@@ -140,10 +173,25 @@ export default function Dashboard({ userId }: DashboardProps) {
             <RechartsLineChart data={spendingOverTime}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
+              <YAxis tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <Tooltip formatter={(value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
               <Legend />
               <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
+            </RechartsLineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Income Over Time */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-4">Income Over Time</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <RechartsLineChart data={incomeOverTime}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <Tooltip formatter={(value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <Legend />
+              <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} />
             </RechartsLineChart>
           </ResponsiveContainer>
         </div>

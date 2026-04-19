@@ -13,6 +13,7 @@ class User(Base):
     
     categories = relationship("Category", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
+    accounts = relationship("Account", back_populates="user")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -28,6 +29,20 @@ class Category(Base):
     user = relationship("User", back_populates="categories")
     transactions = relationship("Transaction", back_populates="category")
 
+class Account(Base):
+    __tablename__ = "accounts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # e.g., "Chase Checking", "Chase Credit Card"
+    account_type = Column(String, nullable=False)  # "checking", "credit_card", "savings"
+    account_number = Column(String, nullable=True)  # Last 4 digits
+    balance = Column(Float, default=0.0)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", back_populates="accounts")
+    transactions = relationship("Transaction", back_populates="account")
+
 class Transaction(Base):
     __tablename__ = "transactions"
     
@@ -35,8 +50,9 @@ class Transaction(Base):
     date = Column(DateTime, nullable=False, index=True)
     description = Column(String, nullable=False, index=True)
     amount = Column(Float, nullable=False)
-    account = Column(String, nullable=True)  # Bank account name
-    account_number = Column(String, nullable=True)  # Last 4 digits of account number
+    account_name = Column(String, nullable=True)  # Bank account name (legacy, will be migrated)
+    account_number = Column(String, nullable=True)  # Last 4 digits of account number (legacy)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)  # New foreign key
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_recurring = Column(Boolean, default=False, index=True)
@@ -44,11 +60,13 @@ class Transaction(Base):
     original_filename = Column(String, nullable=True)  # Source file
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    account_type = Column(String, default="checking")  # "checking" or "credit_card"
-    transaction_type = Column(String, nullable=True)  # "purchase", "payment", "deposit", "withdrawal"
+    account_type = Column(String, default="checking")  # "checking" or "credit_card" (legacy)
+    transaction_type = Column(String, nullable=True)  # "purchase", "payment", "deposit", "withdrawal", "transfer"
+    status = Column(String, default="Posted")  # "Posted" or "Pending"
     
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
+    account = relationship("Account", back_populates="transactions")
 
 class RecurringPayment(Base):
     __tablename__ = "recurring_payments"

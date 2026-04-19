@@ -10,15 +10,34 @@ class UpdateManager:
     
     def __init__(self, repo_url: str = "https://api.github.com/repos"):
         self.repo_url = repo_url
-        self.repo_owner = "your-username"  # Replace with actual repo owner
-        self.repo_name = "BudgetTool"  # Replace with actual repo name
+        self.repo_owner = "Gonhog-Creator"
+        self.repo_name = "BudgetTool"
         self.version_file = Path(__file__).parent.parent.parent.parent / "VERSION"
     
     def get_current_version(self) -> str:
         """Get the current version of the application"""
+        try:
+            project_root = Path(__file__).parent.parent.parent.parent
+            
+            # Try to get version from git tags
+            result = subprocess.run(
+                ['git', 'describe', '--tags', '--abbrev=0'],
+                cwd=project_root,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                version = result.stdout.strip().lstrip('v')
+                return version
+        except:
+            pass
+        
+        # Fallback to VERSION file
         if self.version_file.exists():
             with open(self.version_file, 'r') as f:
                 return f.read().strip()
+        
         return "1.0.0"
     
     def check_for_updates(self) -> Dict:
@@ -161,3 +180,33 @@ class UpdateManager:
         update_info = self.check_for_updates()
         update_info["is_git_repo"] = (Path(__file__).parent.parent.parent.parent / '.git').exists()
         return update_info
+    
+    def get_recent_commits(self) -> Dict:
+        """Get recent commits from git"""
+        try:
+            project_root = Path(__file__).parent.parent.parent.parent
+            
+            # Get recent commits
+            result = subprocess.run(
+                ['git', 'log', '--oneline', '-10'],
+                cwd=project_root,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                commits = result.stdout.strip().split('\n')
+                return {
+                    "success": True,
+                    "commits": commits
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to get commits: {result.stderr}"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to get commits: {str(e)}"
+            }

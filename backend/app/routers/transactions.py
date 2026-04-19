@@ -40,6 +40,7 @@ def get_transactions(
     exclude: Optional[str] = Query(None, description="Exclude keywords from search (comma-separated)"),
     uncategorized_only: Optional[bool] = Query(None, description="Filter to show only uncategorized transactions"),
     sort_by: Optional[str] = Query(None, description="Sort by: 'date' (default) or 'similarity'"),
+    account_id: Optional[int] = Query(None, description="Filter by account ID"),
     db: Session = Depends(get_db)
 ):
     print(f"DEBUG: amount_filter = {amount_filter}, search = {search}, exclude = {exclude}, uncategorized_only = {uncategorized_only}, sort_by = {sort_by}")
@@ -62,17 +63,19 @@ def get_transactions(
     if search:
         query = query.filter(
             TransactionModel.description.ilike(f"%{search}%") |
-            TransactionModel.account.ilike(f"%{search}%")
+            TransactionModel.account_name.ilike(f"%{search}%")
         )
     if exclude:
         exclude_terms = [term.strip() for term in exclude.split(',')]
         for term in exclude_terms:
             query = query.filter(
                 ~TransactionModel.description.ilike(f"%{term}%") &
-                ~TransactionModel.account.ilike(f"%{term}%")
+                ~TransactionModel.account_name.ilike(f"%{term}%")
             )
     if uncategorized_only:
         query = query.filter(TransactionModel.category_id.is_(None))
+    if account_id:
+        query = query.filter(TransactionModel.account_id == account_id)
     
     if sort_by == "similarity":
         # Sort by description to group similar transactions together
